@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ConcurIQ, AI policy triage agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #FAF7F0;
+    --paper-deep: #F0EBE0;
+    --ink: #1A1F2E;
+    --ink-soft: #3D4354;
+    --stone: #8B8378;
+    --stone-light: #C9C2B4;
+    --rust: #C75D3C;
+    --green: #3A7D5C;
+    --line: #D8D1C2;
+    --warn-bg: #FBF0DD;
+    --warn-text: #8A5A12;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    margin: 0;
+    padding: 28px 20px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; }
+  h1 {
+    font-family: 'Source Serif 4', Georgia, serif;
+    font-size: 30px;
+    font-weight: 700;
+    margin: 0;
+  }
+  .sub { font-size: 12.5px; color: var(--stone); margin-top: 2px; }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab {
+    flex: 1;
+    padding: 10px 12px;
+    text-align: center;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--paper-deep);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .tab.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .card {
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 18px;
+  }
+  label { font-size: 13px; color: var(--ink-soft); display: block; margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 8px 10px;
+    background: var(--paper);
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+  button {
+    font-family: inherit;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    padding: 10px 14px;
+    border-radius: 4px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    cursor: pointer;
+  }
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--rust);
+    color: var(--rust);
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .warning {
+    background: var(--warn-bg);
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--warn-text);
+    font-weight: 600;
+  }
+  .result {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+  }
+  .result.success { background: #E7F1EA; color: var(--green); }
+  .result.danger { background: #F8E9E4; color: var(--rust); }
+  .result.warn { background: var(--warn-bg); color: var(--warn-text); }
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+  .stat-box { background: var(--paper-deep); border-radius: 4px; padding: 14px; text-align: center; }
+  .stat-label { font-size: 11px; color: var(--stone); margin: 0; }
+  .stat-num { font-size: 24px; font-weight: 700; margin: 4px 0 0; font-family: 'Source Serif 4', serif; }
+  .queue-row {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .badge.success { color: var(--green); background: rgba(58,125,92,0.1); }
+  .badge.danger { color: var(--rust); background: rgba(199,93,60,0.1); }
+  .badge.warn { color: var(--warn-text); background: var(--warn-bg); }
+  .footer-note { margin-top: 24px; font-size: 11px; color: var(--stone-light); text-align: center; }
+  .empty { font-size: 13px; color: var(--stone-light); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <h1>ConcurIQ</h1>
+      <div class="sub">AI policy triage agent, EasyGo Travel Limited expense policy</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" id="tabEntry">Submit a claim</div>
+    <div class="tab" id="tabDashboard">Finance dashboard</div>
+  </div>
+
+  <div id="entryPane">
+    <p class="sub" style="margin-bottom: 12px;">New claim line, UK region</p>
+    <div class="card">
+      <label for="employeeName">Your name</label>
+      <input type="text" id="employeeName" value="R. Adeyemi" />
+
+      <label for="category">Category</label>
+      <select id="category">
+        <option value="Dinner" data-cap="30">Dinner</option>
+        <option value="Lunch" data-cap="18">Lunch</option>
+        <option value="Breakfast" data-cap="12">Breakfast</option>
+        <option value="Taxi" data-cap="60">Taxi</option>
+      </select>
+
+      <label for="amount">Amount (£)</label>
+      <input type="number" id="amount" value="50" step="1" />
+
+      <label for="merchant">Merchant</label>
+      <input type="text" id="merchant" value="The Ivy, London" />
+
+      <div id="liveWarning" class="warning" style="display:none;"></div>
+
+      <div id="justificationBlock" style="display:none;">
+        <label for="justification">Business reason for exceeding the cap</label>
+        <textarea id="justification" rows="2" placeholder="e.g. Dinner with prospective client, 3 attendees, deal under negotiation"></textarea>
+      </div>
+
+      <button id="submitBtn" style="width:100%;">Submit claim line</button>
+      <div id="resultBlock" class="result" style="display:none;"></div>
+    </div>
+  </div>
+
+  <div id="dashboardPane" style="display:none;">
+    <div class="stat-grid">
+      <div class="stat-box">
+        <p class="stat-label">claims submitted</p>
+        <p class="stat-num" id="statTotal">0</p>
+      </div>
+      <div class="stat-box">
+        <p class="stat-label">resolved automatically</p>
+        <p class="stat-num" id="statAuto" style="color: var(--green);">0</p>
+      </div>
+      <div class="stat-box">
+        <p class="stat-label">needs finance review</p>
+        <p class="stat-num" id="statReview" style="color: var(--warn-text);">0</p>
+      </div>
+    </div>
+    <p class="sub" style="margin-bottom: 10px;">Queue</p>
+    <div id="queueList"></div>
+    <p class="empty" id="emptyQueue" style="display:none;">No claims yet. Submit one from the claim entry tab to see it appear here.</p>
+  </div>
+
+  <div class="footer-note">
+    Built as a portfolio project against EasyGo Travel Limited's real expense policy.
+    Rule checks run instantly in the browser. The AI agent call goes through a secure
+    serverless function, your API key never reaches the browser.
+  </div>
+</div>
+
+<script>
+const QUEUE = [];
+
+function getCap() {
+  const sel = document.getElementById('category');
+  return parseFloat(sel.selectedOptions[0].dataset.cap);
+}
+
+function checkLive() {
+  const amount = parseFloat(document.getElementById('amount').value) || 0;
+  const cap = getCap();
+  const category = document.getElementById('category').value;
+  const warn = document.getElementById('liveWarning');
+  const justBlock = document.getElementById('justificationBlock');
+  document.getElementById('resultBlock').style.display = 'none';
+
+  if (amount > cap) {
+    warn.style.display = 'block';
+    warn.textContent = category + ' of £' + amount.toFixed(2) + ' exceeds the £' + cap.toFixed(2) + ' policy cap. Add a business reason below, an AI agent will review it against policy.';
+    justBlock.style.display = 'block';
+  } else {
+    warn.style.display = 'none';
+    justBlock.style.display = 'none';
+  }
+}
+
+async function callAgent(systemPrompt, userPrompt, maxTokens) {
+  const res = await fetch('/api/agent', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ systemPrompt, userPrompt, maxTokens: maxTokens || 400 })
+  });
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error('Agent request failed: ' + errBody);
+  }
+  const data = await res.json();
+  return data.text || '';
+}
+
+function pushToQueue(entry) {
+  QUEUE.unshift(entry);
+  renderDashboard();
+}
+
+function renderDashboard() {
+  document.getElementById('statTotal').textContent = QUEUE.length;
+  document.getElementById('statAuto').textContent = QUEUE.filter(q => q.outcome === 'AUTO_APPROVE' || q.outcome === 'WITHIN_POLICY' || q.outcome === 'REJECT').length;
+  document.getElementById('statReview').textContent = QUEUE.filter(q => q.outcome === 'NEEDS_REVIEW').length;
+
+  const list = document.getElementById('queueList');
+  const empty = document.getElementById('emptyQueue');
+  list.innerHTML = '';
+  if (QUEUE.length === 0) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  QUEUE.forEach(q => {
+    const row = document.createElement('div');
+    row.className = 'queue-row';
+
+    let badgeClass, badgeLabel;
+    if (q.outcome === 'NEEDS_REVIEW') { badgeClass = 'warn'; badgeLabel = 'sent to finance'; }
+    else if (q.outcome === 'REJECT') { badgeClass = 'danger'; badgeLabel = 'rejected by agent'; }
+    else { badgeClass = 'success'; badgeLabel = 'resolved automatically'; }
+
+    row.innerHTML =
+      '<div>' +
+        '<p style="font-size:14px; font-weight:600; margin:0;">' + q.employee + ', ' + q.category + ' <span style="color:var(--stone); font-weight:400;">' + q.merchant + '</span></p>' +
+        '<p style="font-size:12px; color:var(--ink-soft); margin:2px 0 0;">' + q.reason + '</p>' +
+      '</div>' +
+      '<div style="display:flex; align-items:center; gap:10px; white-space:nowrap;">' +
+        '<span style="font-size:15px; font-weight:600;">£' + q.amount.toFixed(2) + '</span>' +
+        '<span class="badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+      '</div>';
+
+    list.appendChild(row);
+  });
+}
+
+async function submitClaim() {
+  const amount = parseFloat(document.getElementById('amount').value) || 0;
+  const cap = getCap();
+  const category = document.getElementById('category').value;
+  const merchant = document.getElementById('merchant').value;
+  const employee = document.getElementById('employeeName').value || 'Employee';
+  const result = document.getElementById('resultBlock');
+  const btn = document.getElementById('submitBtn');
+
+  if (amount <= cap) {
+    result.style.display = 'block';
+    result.className = 'result success';
+    result.textContent = 'Within policy. Claim line submitted, no review needed.';
+    pushToQueue({ employee, category, merchant, amount, outcome: 'WITHIN_POLICY', reason: 'Within the £' + cap.toFixed(2) + ' policy cap.' });
+    return;
+  }
+
+  const justification = document.getElementById('justification').value.trim();
+  if (!justification) {
+    result.style.display = 'block';
+    result.className = 'result danger';
+    result.textContent = 'A business reason is required to submit a claim above the policy cap.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Agent reviewing...';
+
+  const system = "You are an AI policy agent for EasyGo Travel Limited, checking expense claims against the company's expense policy. An employee has submitted an expense above the category cap with a justification. Decide one of three outcomes: AUTO_APPROVE if the justification clearly describes a legitimate, specific business reason such as client entertainment with named context; NEEDS_REVIEW if the justification is plausible but vague or unverified and a manager should confirm; REJECT if the justification is not a valid business reason or is clearly personal. Respond in exactly this format with no markdown: OUTCOME: <AUTO_APPROVE|NEEDS_REVIEW|REJECT>\nREASON: <one short plain English sentence, no em dashes>";
+  const user = "Category: " + category + ". Merchant: " + merchant + ". Amount: £" + amount.toFixed(2) + ". Policy cap: £" + cap.toFixed(2) + ". Employee justification: \"" + justification + "\"";
+
+  try {
+    const text = await callAgent(system, user, 200);
+    const outcomeMatch = text.match(/OUTCOME:\s*(\w+)/);
+    const reasonMatch = text.match(/REASON:\s*([\s\S]*)/);
+    const outcome = outcomeMatch ? outcomeMatch[1] : 'NEEDS_REVIEW';
+    const reason = reasonMatch ? reasonMatch[1].trim() : text.trim();
+
+    result.style.display = 'block';
+    if (outcome === 'AUTO_APPROVE') {
+      result.className = 'result success';
+      result.textContent = 'Auto-approved by policy agent. ' + reason;
+    } else if (outcome === 'REJECT') {
+      result.className = 'result danger';
+      result.textContent = 'Rejected by policy agent. ' + reason;
+    } else {
+      result.className = 'result warn';
+      result.textContent = 'Sent for manager review. ' + reason;
+    }
+
+    pushToQueue({ employee, category, merchant, amount, outcome, reason });
+  } catch (e) {
+    result.style.display = 'block';
+    result.className = 'result danger';
+    result.textContent = 'Agent review failed. Try again in a moment.';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Submit claim line';
+}
+
+document.getElementById('category').addEventListener('input', checkLive);
+document.getElementById('amount').addEventListener('input', checkLive);
+document.getElementById('submitBtn').addEventListener('click', submitClaim);
+
+document.getElementById('tabEntry').addEventListener('click', () => {
+  document.getElementById('tabEntry').classList.add('active');
+  document.getElementById('tabDashboard').classList.remove('active');
+  document.getElementById('entryPane').style.display = 'block';
+  document.getElementById('dashboardPane').style.display = 'none';
+});
+document.getElementById('tabDashboard').addEventListener('click', () => {
+  document.getElementById('tabDashboard').classList.add('active');
+  document.getElementById('tabEntry').classList.remove('active');
+  document.getElementById('entryPane').style.display = 'none';
+  document.getElementById('dashboardPane').style.display = 'block';
+});
+
+checkLive();
+renderDashboard();
+</script>
+</body>
+</html>

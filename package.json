@@ -1,0 +1,6 @@
+{
+  "name": "concuriq",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ConcurIQ, an AI policy triage agent demo built against EasyGo Travel Limited's expense policy."
+}
